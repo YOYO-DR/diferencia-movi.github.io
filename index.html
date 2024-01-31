@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diferencia ATH Movilidad</title>
+    <link
+      rel="icon"
+      href="https://www.fasttrack.com.co/wp-content/uploads/2018/11/icono-fasttrack.png"
+      sizes="192x192"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <style>
+      body {
+        height: 80vh;
+      }
+      .btn-icono {
+        border: none !important;
+        background-color: inherit !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="container d-flex justify-content-center align-items-center h-100 flex-column"
+    >
+      <h2 class="mb-2">ATH Movilidad diferencias</h2>
+      <form class="border rounded p-2">
+        <div class="mb-3">
+          <label for="ath" class="form-label"
+            >Cargar archivo <i>.lst</i> enviado por ATH</label
+          >
+          <input
+            type="file"
+            class="form-control"
+            id="ath"
+            accept=".lst"
+          />
+        </div>
+        <div class="mb-3">
+          <label for="ath_local" class="form-label"
+            >Cargar archivo <i>.xls</i> con la lista de registros exportados de
+            la pasarela de pagos, filtrado por Canal ATH</label
+          >
+          <input
+            type="file"
+            class="form-control"
+            id="ath_local"
+            accept=".xls"
+          />
+        </div>
+        <button type="submit" id="leer" class="btn btn-primary">Leer</button>
+      </form>
+    </div>
+    <!-- Modal -->
+    <div
+      class="modal fade"
+      id="exampleModal"
+      tabindex="-1"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">...</div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button type="button" class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      async function lineasFunc(archivo, tipo) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          if (tipo == "ath") {
+            let lineas;
+            reader.onload = function (e) {
+              lineas = e.target.result.split("\n");
+
+              let lineasNum = [];
+
+              for (let linea of lineas) {
+                //console.log(console.log(`${linea[0]} ${!isNaN(linea[0])}`));
+                if (!isNaN(linea[0]) && linea[0] !== "" && linea[0] !== "\r") {
+                  lineasNum.push(linea.split(" ")[0]);
+                }
+              }
+              resolve(lineasNum);
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsText(archivo);
+          } else {
+            reader.onload = function (e) {
+              let data = new Uint8Array(e.target.result);
+              let workbook = XLSX.read(data, { type: "array" });
+              // Ahora puedes trabajar con el libro de trabajo (workbook)
+              // Por ejemplo, puedes obtener la primera hoja del libro de trabajo
+              let sheetNameList = workbook.SheetNames;
+              let worksheet = workbook.Sheets[sheetNameList[0]];
+              let jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+              let lineasNum = [];
+              for (let linea of jsonData) {
+                if (linea.length < 1) continue;
+                if (linea.length > 16) {
+                  if (isNaN(linea[4])) continue;
+                  lineasNum.push(linea[4]);
+                }
+              }
+              resolve(lineasNum);
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsArrayBuffer(archivo);
+          }
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const inputATH = document.querySelector("#ath");
+        const inputLocal = document.querySelector("#ath_local");
+        const btnLeer = document.querySelector("#leer");
+
+        const Toast = Swal.mixin({
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.onmouseenter = Swal.stopTimer;
+            toast.onmouseleave = Swal.resumeTimer;
+          },
+        });
+
+        btnLeer.addEventListener("click", async (e) => {
+          e.preventDefault();
+          let archivoATH = inputATH.files[0];
+          let archivoLocal = inputLocal.files[0];
+          if (!archivoATH || !archivoLocal) {
+            Toast.fire({
+              icon: "warning",
+              title: "Faltan archivos",
+            });
+            return false;
+          }
+          let registrosATHMayor = await lineasFunc(archivoATH, "ath");
+          let registrosATHLocalMenor = await lineasFunc(
+            archivoLocal,
+            "ath_local"
+          );
+          let registrosNoEnElXLS = [];
+          let registrosNoEnElLST = [];
+          for (let i of registrosATHMayor) {
+            if (!registrosATHLocalMenor.includes(i)) {
+              registrosNoEnElXLS.push(i);
+              
+            }
+          }
+          for (let i of registrosATHLocalMenor){
+            if (!registrosATHMayor.includes(i)){
+              registrosNoEnElLST.push(i)
+              
+            }
+          }
+          let resultHTML=""
+          let registrosDiferentesNoXLS = "";
+          let registrosDiferentesNoLST = "";
+          if (registrosNoEnElXLS.length > 0) {
+            registrosDiferentesNoXLS +=
+              '<div class="border rounded d-flex flex-column alig-items-center mb-2 p-1"><h3 class="fs-6">Estan en el LST pero no en el XLS (Los tienen ellos pero nosotros no)</h3>';
+            for (let i of registrosATHMayor) {
+              if (!registrosATHLocalMenor.includes(i)) {
+                if (i.trim() == "") continue;
+                registrosDiferentesNoXLS += `<b>${i} <button class="btn btn-icono"><i class="fa-solid fa-copy"></i></button></b>\n`;
+              }
+            }
+            registrosDiferentesNoXLS += "</div>";
+            resultHTML+=registrosDiferentesNoXLS
+          }
+
+          if (registrosNoEnElLST.length > 0) {
+            registrosDiferentesNoLST +=
+              '<div class="border rounded d-flex flex-column alig-items-center p-1"><h3 class="fs-6">Estan en el XLS pero no en el LST (Los tenemos nosotros pero ellos no)</h3>';
+            for (let i of registrosATHLocalMenor) {
+              if (!registrosATHMayor.includes(i)) {
+                if (i.trim() == "") continue;
+                registrosDiferentesNoLST += `<b>${i} <button class="btn btn-icono"><i class="fa-solid fa-copy"></i></button></b>\n`;
+              }
+            }
+            registrosDiferentesNoLST += "</div>";
+            resultHTML+=registrosDiferentesNoLST
+          }
+
+
+          Swal.fire({
+            title: `Referencias diferentes`,
+            html: `${
+              registrosNoEnElXLS.length > 0 || registrosDiferentesNoLST > 0
+                ? resultHTML
+                : "No hay diferencias"
+            }`,
+            icon: registrosNoEnElXLS.length > 0 ? "warning" : "success",
+            confirmButtonColor: "#3085d6",
+            confirmButtonText: "OK",
+            didOpen: () => {
+              const btnCopy = document.querySelectorAll(".btn-icono");
+              btnCopy.forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  const tag_e = btn.parentElement;
+                  const tag_i = btn.querySelector("i");
+                  tag_i.classList.remove("fa-copy");
+                  tag_i.classList.add("fa-check");
+                  setTimeout(() => {
+                    tag_i.classList.remove("fa-check");
+                    tag_i.classList.add("fa-copy");
+                  }, 2000);
+                  navigator.clipboard.writeText(tag_e.textContent.trim());
+                });
+              });
+            },
+          }).then((result) => {
+            inputATH.value = "";
+            inputLocal.value = "";
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

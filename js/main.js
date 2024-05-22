@@ -35,7 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (let i of registrosATHMayor) {
       if (!registrosATHLocalMenor.includes(i) && i.trim() !== "") {
-        console.log(`for registrosATHMayor, dentro del if '${i}'`);
         registrosNoEnElXLS.push(i);
       }
     }

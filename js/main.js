@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
       html: `${
         registrosNoEnElXLS.length > 0 || registrosNoEnElLST > 0
           ? resultHTML
-          : "No hay diferencias"
+          : ""
       }`,
       icon: registrosNoEnElXLS.length > 0 || registrosNoEnElLST > 0 ? "warning" : "success",
       confirmButtonColor: "#3085d6",

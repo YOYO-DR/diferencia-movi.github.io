@@ -1,4 +1,4 @@
-import { lineasFunc } from "/diferencia-movi.github.io/utils.js";
+import { lineasFunc } from "/diferencia-movi.github.io/js/utils.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const inputATH = document.querySelector("#ath");
